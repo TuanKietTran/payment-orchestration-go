@@ -16,6 +16,7 @@ Go 1.22, Chi, `shopspring/decimal`, Google UUID. Postgres via `jackc/pgx` v5 whe
 | Date | Change | Evidence |
 | --- | --- | --- |
 | 2026-10-17 | Handler tests and Postgres repository | `90eefb7`. `go test ./...`. Embedded Postgres 16 covered create, idempotency, status update, and a missing payment. |
+| 2026-10-17 | 1000 requests in one minute, retry, playback, coverage | `internal/playback`. 1000 creates plus one 503 retry each finished in 79ms. Replay returned the original ids and did not add payments. Statement coverage 46.0%. |
 
 ## Out of scope until implemented
 
