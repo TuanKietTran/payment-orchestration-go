@@ -8,6 +8,7 @@ import (
 
 	"github.com/TuanKietTran/payment-orchestration-go/internal/api"
 	"github.com/TuanKietTran/payment-orchestration-go/internal/command"
+	"github.com/TuanKietTran/payment-orchestration-go/internal/downstream"
 	"github.com/TuanKietTran/payment-orchestration-go/internal/query"
 	"github.com/TuanKietTran/payment-orchestration-go/internal/repository"
 	"github.com/go-chi/chi/v5"
@@ -20,7 +21,24 @@ func main() {
 
 	createH := command.NewCreatePaymentHandler(repo)
 	getH := query.NewGetPaymentHandler(repo)
-	handlers := api.NewHandlers(createH, getH)
+	var fraud downstream.Fraud = downstream.SimulatedFraud{}
+	var ledger downstream.Ledger = downstream.NewSimulatedLedger()
+	if base := os.Getenv("FRAUD_URL"); base != "" {
+		client, err := downstream.NewHTTP(base)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fraud = client
+	}
+	if base := os.Getenv("LEDGER_URL"); base != "" {
+		client, err := downstream.NewHTTP(base)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ledger = client
+	}
+	processH := command.NewProcessPaymentHandler(repo, fraud, ledger)
+	handlers := api.NewHandlers(createH, getH, processH)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)

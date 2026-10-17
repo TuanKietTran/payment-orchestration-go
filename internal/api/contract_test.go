@@ -29,7 +29,7 @@ func TestOpenAPIContractParsesAndSeparatesImplementedRoutes(t *testing.T) {
 			t.Errorf("implemented route missing: %s", route)
 		}
 	}
-	for _, route := range []string{"/v1/payments/{id}/process", "/v1/payments/{id}/capture", "/v1/payments/{id}/refunds", "/v1/reconciliation"} {
+	for _, route := range []string{"/v1/payments/{id}/capture", "/v1/payments/{id}/refunds", "/v1/reconciliation"} {
 		for _, op := range doc.Paths[route] {
 			if len(op.Summary) < 8 || op.Summary[:8] != "PLANNED:" {
 				t.Errorf("planned route %s not marked planned: %q", route, op.Summary)

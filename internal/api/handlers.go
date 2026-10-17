@@ -13,18 +13,26 @@ import (
 )
 
 type Handlers struct {
-	create *command.CreatePaymentHandler
-	get    *query.GetPaymentHandler
+	create  *command.CreatePaymentHandler
+	get     *query.GetPaymentHandler
+	process *command.ProcessPaymentHandler
 }
 
-func NewHandlers(c *command.CreatePaymentHandler, g *query.GetPaymentHandler) *Handlers {
-	return &Handlers{create: c, get: g}
+func NewHandlers(c *command.CreatePaymentHandler, g *query.GetPaymentHandler, process ...*command.ProcessPaymentHandler) *Handlers {
+	h := &Handlers{create: c, get: g}
+	if len(process) > 0 {
+		h.process = process[0]
+	}
+	return h
 }
 
 func (h *Handlers) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/payments", h.createPayment)
 	r.Get("/payments/{id}", h.getPayment)
+	if h.process != nil {
+		r.Post("/payments/{id}/process", h.processPayment)
+	}
 	return r
 }
 
@@ -59,6 +67,21 @@ func (h *Handlers) createPayment(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"payment_id": id.String()})
+}
+
+func (h *Handlers) processPayment(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	p, err := h.process.Handle(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(p)
 }
 
 func (h *Handlers) getPayment(w http.ResponseWriter, r *http.Request) {
