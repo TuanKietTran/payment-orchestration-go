@@ -4,13 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 
+	"github.com/example/payment-orchestration/internal/api"
 	"github.com/example/payment-orchestration/internal/command"
 	"github.com/example/payment-orchestration/internal/domain"
 	"github.com/example/payment-orchestration/internal/query"
-	"github.com/example/payment-orchestration/internal/repository"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
 )
 
 type memRepo struct {
@@ -39,22 +41,13 @@ func main() {
 	repo := &memRepo{}
 	createH := command.NewCreatePaymentHandler(repo)
 	getH := query.NewGetPaymentHandler(repo)
+	handlers := api.NewHandlers(createH, getH)
 
-	id, err := createH.Handle(context.Background(), command.CreatePaymentCommand{
-		IdempotencyKey: "pay-1",
-		SourceAccount:  "acc-1",
-		DestAccount:    "acc-2",
-		Amount:         decimal.NewFromInt(250),
-		Currency:       "USD",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Created payment:", id)
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Mount("/v1", handlers.Routes())
 
-	p, err := getH.Handle(context.Background(), query.GetPaymentQuery{ID: id})
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("Payment status: %s amount: %s\n", p.Status, p.Amount)
+	log.Println("Payment API listening on :8081")
+	log.Fatal(http.ListenAndServe(":8081", r))
 }
