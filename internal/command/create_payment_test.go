@@ -60,9 +60,13 @@ func TestCreatePayment_IdempotencyKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = create.Handle(context.Background(), cmd)
-	if err == nil || !strings.Contains(err.Error(), "idempotency key already used") || !strings.Contains(err.Error(), id.String()) {
-		t.Fatalf("err = %v", err)
+	replayed, err := create.Handle(context.Background(), cmd)
+	if err != nil || replayed != id {
+		t.Fatalf("replay = %s, err = %v; want original %s", replayed, err, id)
+	}
+	cmd.Amount = decimal.NewFromInt(4)
+	if _, err := create.Handle(context.Background(), cmd); err != ErrIdempotencyConflict {
+		t.Fatalf("changed payload error = %v", err)
 	}
 }
 
@@ -110,6 +114,9 @@ type errRepo struct{ err error }
 
 func (e errRepo) Save(context.Context, domain.Payment) error { return e.err }
 func (e errRepo) GetByID(context.Context, domain.PaymentID) (*domain.Payment, error) {
+	return nil, e.err
+}
+func (e errRepo) GetByIdempotencyKey(context.Context, string) (*domain.Payment, error) {
 	return nil, e.err
 }
 func (e errRepo) UpdateStatus(context.Context, domain.PaymentID, domain.PaymentStatus) error {

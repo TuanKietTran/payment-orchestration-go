@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/TuanKietTran/payment-orchestration-go/internal/command"
@@ -49,7 +50,11 @@ func (h *Handlers) createPayment(w http.ResponseWriter, r *http.Request) {
 		Currency:       req.Currency,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		if errors.Is(err, command.ErrIdempotencyConflict) {
+			http.Error(w, err.Error(), http.StatusConflict)
+		} else {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

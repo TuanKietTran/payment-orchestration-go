@@ -33,6 +33,17 @@ func (r *InMemoryPayment) Save(ctx context.Context, p domain.Payment) error {
 	return nil
 }
 
+func (r *InMemoryPayment) GetByIdempotencyKey(ctx context.Context, key string) (*domain.Payment, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	id, ok := r.idempotency[key]
+	if !ok {
+		return nil, fmt.Errorf("payment not found")
+	}
+	p := r.payments[id]
+	return &p, nil
+}
+
 func (r *InMemoryPayment) GetByID(ctx context.Context, id domain.PaymentID) (*domain.Payment, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

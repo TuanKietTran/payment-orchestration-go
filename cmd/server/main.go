@@ -27,8 +27,12 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Mount("/v1", handlers.Routes())
 
-	log.Println("Payment API listening on :8081")
-	log.Fatal(http.ListenAndServe(":8081", r))
+	addr := os.Getenv("HTTP_ADDR")
+	if addr == "" {
+		addr = ":8102"
+	}
+	log.Printf("Payment API listening on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, r))
 }
 
 func openRepo(ctx context.Context) (repository.PaymentRepository, func()) {

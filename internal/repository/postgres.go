@@ -68,6 +68,17 @@ func (r *PostgresPayment) Save(ctx context.Context, p domain.Payment) error {
 	return nil
 }
 
+func (r *PostgresPayment) GetByIdempotencyKey(ctx context.Context, key string) (*domain.Payment, error) {
+	var id uuid.UUID
+	if err := r.pool.QueryRow(ctx, `SELECT id FROM payments WHERE idempotency_key=$1`, key).Scan(&id); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("payment not found")
+		}
+		return nil, err
+	}
+	return r.GetByID(ctx, id)
+}
+
 func (r *PostgresPayment) GetByID(ctx context.Context, id domain.PaymentID) (*domain.Payment, error) {
 	var p domain.Payment
 	var amountText, status string

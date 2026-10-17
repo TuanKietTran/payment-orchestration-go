@@ -45,7 +45,7 @@ func Retryable(status int) bool {
 }
 
 func IsIdempotentReplay(status int, body []byte) bool {
-	return status == http.StatusBadRequest && bytes.Contains(body, []byte("idempotency key already used"))
+	return status == http.StatusOK && bytes.Contains(body, []byte("payment_id"))
 }
 
 // Play sends calls in order. A later Play of the same slice is a playback.
