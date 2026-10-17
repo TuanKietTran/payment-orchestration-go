@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/example/payment-orchestration/internal/domain"
-	"github.com/google/uuid"
 )
 
 type InMemoryPayment struct {
