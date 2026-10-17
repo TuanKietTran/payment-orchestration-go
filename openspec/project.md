@@ -10,8 +10,13 @@ Go 1.22, Chi, `shopspring/decimal`, Google UUID. Postgres via `jackc/pgx` v5 whe
 
 - `POST /v1/payments`
 - `GET /v1/payments/{id}`
+- `api/openapi.yaml` is authoritative: create/get are implemented; process/capture/refund/list/reconciliation are explicitly planned, not callable.
 
 ## Checkpoints
+
+| Date | Change | Evidence |
+| --- | --- | --- |
+| 2026-10-18 | production-payments contract publication | OpenAPI published; handler route/status tests and implementation pending. |
 
 | Date | Change | Evidence |
 | --- | --- | --- |
