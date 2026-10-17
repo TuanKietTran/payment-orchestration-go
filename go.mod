@@ -1,4 +1,4 @@
-module github.com/example/payment-orchestration
+module github.com/TuanKietTran/payment-orchestration-go
 
 go 1.22
 

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/example/payment-orchestration/internal/domain"
+	"github.com/TuanKietTran/payment-orchestration-go/internal/domain"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"

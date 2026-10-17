@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/example/payment-orchestration/internal/domain"
+	"github.com/TuanKietTran/payment-orchestration-go/internal/domain"
 )
 
 type InMemoryPayment struct {

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/example/payment-orchestration/internal/domain"
+	"github.com/TuanKietTran/payment-orchestration-go/internal/domain"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"

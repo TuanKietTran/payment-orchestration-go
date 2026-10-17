@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/example/payment-orchestration/internal/api"
-	"github.com/example/payment-orchestration/internal/command"
-	"github.com/example/payment-orchestration/internal/query"
-	"github.com/example/payment-orchestration/internal/repository"
+	"github.com/TuanKietTran/payment-orchestration-go/internal/api"
+	"github.com/TuanKietTran/payment-orchestration-go/internal/command"
+	"github.com/TuanKietTran/payment-orchestration-go/internal/query"
+	"github.com/TuanKietTran/payment-orchestration-go/internal/repository"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )

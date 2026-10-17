@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/example/payment-orchestration/internal/domain"
-	"github.com/example/payment-orchestration/internal/query"
-	"github.com/example/payment-orchestration/internal/repository"
+	"github.com/TuanKietTran/payment-orchestration-go/internal/domain"
+	"github.com/TuanKietTran/payment-orchestration-go/internal/query"
+	"github.com/TuanKietTran/payment-orchestration-go/internal/repository"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )

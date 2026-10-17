@@ -3,8 +3,8 @@ package query
 import (
 	"context"
 
-	"github.com/example/payment-orchestration/internal/domain"
-	"github.com/example/payment-orchestration/internal/repository"
+	"github.com/TuanKietTran/payment-orchestration-go/internal/domain"
+	"github.com/TuanKietTran/payment-orchestration-go/internal/repository"
 )
 
 type GetPaymentQuery struct {
