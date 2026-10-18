@@ -11,6 +11,10 @@ Payment lifecycle service using CQRS.
 - GetPayment
 - ListPayments
 
+## Money boundary
+
+USD/EUR/GBP only; positive values up to `999999999999.99`, exact to two minor-unit digits. Excess nonzero fractional precision is rejected, never rounded. Raw decimal exponents outside `[-18,12]` are rejected before rescaling. Numeric JSON compatibility parses directly into decimal, not float. No FX conversion.
+
 ## Run
 ```bash
 go test ./...

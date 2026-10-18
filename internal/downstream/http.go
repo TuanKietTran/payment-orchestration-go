@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TuanKietTran/payment-orchestration-go/internal/domain"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
@@ -111,10 +112,16 @@ func (h *HTTP) attempt(ctx context.Context, method, path string, payload []byte,
 }
 func (h *HTTP) Score(ctx context.Context, event, account string, amount decimal.Decimal, currency string) (FraudDecision, error) {
 	var out FraudDecision
+	if err := domain.ValidateAmountCurrency(amount, currency); err != nil {
+		return out, err
+	}
 	err := h.request(ctx, http.MethodPost, "/v1/score", map[string]string{"event_id": event, "account": account, "amount": amount.StringFixedBank(2), "currency": currency}, &out)
 	return out, err
 }
 func (h *HTTP) Post(ctx context.Context, key, source, dest string, amount decimal.Decimal, currency string) (string, error) {
+	if err := domain.ValidateAmountCurrency(amount, currency); err != nil {
+		return "", err
+	}
 	sid, e := uuid.Parse(source)
 	if e != nil {
 		return "", fmt.Errorf("source account UUID: %w", e)
@@ -134,6 +141,9 @@ func (h *HTTP) Post(ctx context.Context, key, source, dest string, amount decima
 type SimulatedFraud struct{}
 
 func (SimulatedFraud) Score(_ context.Context, event, account string, amount decimal.Decimal, currency string) (FraudDecision, error) {
+	if err := domain.ValidateAmountCurrency(amount, currency); err != nil {
+		return FraudDecision{}, err
+	}
 	d := "ALLOW"
 	if amount.Cmp(decimal.NewFromInt(20000)) >= 0 {
 		d = "BLOCK"
@@ -152,6 +162,9 @@ func NewSimulatedLedger() *SimulatedLedger {
 	return &SimulatedLedger{Transactions: map[string]string{}}
 }
 func (l *SimulatedLedger) Post(_ context.Context, key, source, dest string, amount decimal.Decimal, currency string) (string, error) {
+	if err := domain.ValidateAmountCurrency(amount, currency); err != nil {
+		return "", err
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if id, ok := l.Transactions[key]; ok {

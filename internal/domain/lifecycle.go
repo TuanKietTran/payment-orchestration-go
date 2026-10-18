@@ -21,8 +21,21 @@ const (
 	StatusPartiallyRefunded PaymentStatus = "PARTIALLY_REFUNDED"
 )
 
+const MaxPaymentAmount = "999999999999.99"
+
+var maxPaymentAmount = decimal.RequireFromString(MaxPaymentAmount)
+
+// Reject rather than round: all supported currencies have two minor-unit digits.
+// Check exponent bounds before operations that might allocate a huge coefficient.
+func validMinorUnits(amount decimal.Decimal) bool {
+	if amount.Exponent() < -18 || amount.Exponent() > 12 {
+		return false
+	}
+	return amount.Equal(amount.Truncate(2)) && amount.Abs().LessThanOrEqual(maxPaymentAmount)
+}
+
 func ValidateAmountCurrency(amount decimal.Decimal, currency string) error {
-	if amount.Cmp(decimal.Zero) <= 0 || len(currency) != 3 || strings.ToUpper(currency) != currency {
+	if !validMinorUnits(amount) || amount.Sign() <= 0 || len(currency) != 3 || strings.ToUpper(currency) != currency {
 		return ErrInvalidPayment
 	}
 	for _, r := range currency {
@@ -30,7 +43,11 @@ func ValidateAmountCurrency(amount decimal.Decimal, currency string) error {
 			return ErrInvalidPayment
 		}
 	}
-	return nil
+	switch currency {
+	case "USD", "EUR", "GBP":
+		return nil
+	}
+	return ErrInvalidPayment
 }
 
 func CanTransition(from, to PaymentStatus) bool {
@@ -64,7 +81,7 @@ func Transition(p Payment, to PaymentStatus) (Payment, error) {
 
 // ValidateRefund enforces positive cumulative refunds no greater than captured payment value.
 func ValidateRefund(paymentAmount, cumulativeRefund, refund decimal.Decimal) error {
-	if paymentAmount.Cmp(decimal.Zero) <= 0 || refund.Cmp(decimal.Zero) <= 0 || cumulativeRefund.Cmp(decimal.Zero) < 0 || cumulativeRefund.Add(refund).Cmp(paymentAmount) > 0 {
+	if !validMinorUnits(paymentAmount) || !validMinorUnits(cumulativeRefund) || !validMinorUnits(refund) || paymentAmount.Sign() <= 0 || refund.Sign() <= 0 || cumulativeRefund.Sign() < 0 || cumulativeRefund.Add(refund).Cmp(paymentAmount) > 0 {
 		return ErrInvalidRefund
 	}
 	return nil

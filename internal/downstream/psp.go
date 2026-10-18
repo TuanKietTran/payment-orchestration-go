@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TuanKietTran/payment-orchestration-go/internal/domain"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
@@ -45,7 +46,7 @@ func (p *SimulatedPSP) operation(ctx context.Context, operation, key, authorizat
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	if key == "" || amount.Sign() <= 0 || currency == "" {
+	if key == "" || domain.ValidateAmountCurrency(amount, currency) != nil {
 		return "", ErrPSPDeclined
 	}
 	p.mu.Lock()

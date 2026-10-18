@@ -24,7 +24,7 @@ func sameRefund(r domain.Refund, id domain.PaymentID, amount decimal.Decimal) er
 	return nil
 }
 func validRefundRequest(key string, amount decimal.Decimal) error {
-	if key == "" || !amount.Equal(amount.Round(2)) || amount.Sign() <= 0 {
+	if key == "" || domain.ValidateRefund(decimal.RequireFromString(domain.MaxPaymentAmount), decimal.Zero, amount) != nil {
 		return domain.ErrInvalidRefund
 	}
 	return nil

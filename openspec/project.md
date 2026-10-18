@@ -31,6 +31,8 @@ Go 1.22, Chi, `shopspring/decimal`, Google UUID. Postgres via `jackc/pgx` v5 whe
 
 | 2026-10-18 | durable partial/full refunds | `a2eb9d6`; `GOTOOLCHAIN=local go test -p 2 ./... -race -count=1 -cover` passed; domain 100%, weighted non-cmd 80.80%, repository 83.1%. Evidence: control `logs/payments/card4e-gates.log`. |
 
+| 2026-10-18 | recoverable synthetic PSP stages | `ec42d55`; `GOTOOLCHAIN=local go test -p 2 ./... -race -count=1 -cover` passed; domain 100%, weighted non-cmd 82.96%, repository 84.2%. Fuzz currency validator 151185 executions/3s. Evidence: control `logs/payments/card4f-{gates,fuzz}.log`. |
+
 ## Out of scope until implemented
 
 - `CancelPayment`, `RefundPayment`, and `ListPayments` are named in the README and have no HTTP route.
