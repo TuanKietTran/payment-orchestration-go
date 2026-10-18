@@ -74,6 +74,8 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	pinger, _ := repo.(api.Pinger)
+	api.MountOps(r, pinger)
 	r.Mount("/v1", handlers.Routes())
 
 	addr := os.Getenv("HTTP_ADDR")
