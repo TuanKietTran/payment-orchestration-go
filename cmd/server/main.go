@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/TuanKietTran/payment-orchestration-go/internal/api"
 	"github.com/TuanKietTran/payment-orchestration-go/internal/command"
@@ -16,7 +20,9 @@ import (
 )
 
 func main() {
-	repo, cleanup := openRepo(context.Background())
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	repo, cleanup := openRepo(ctx)
 	defer cleanup()
 
 	createH := command.NewCreatePaymentHandler(repo)
@@ -39,6 +45,22 @@ func main() {
 	}
 	processH := command.NewProcessPaymentHandler(repo, fraud, ledger)
 	handlers := api.NewHandlers(createH, getH, processH)
+	workerDone := make(chan struct{})
+	go func() {
+		defer close(workerDone)
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			if err := processH.Recover(ctx, 100); err != nil && ctx.Err() == nil {
+				log.Printf("outbox recovery: %v", err)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -50,10 +72,23 @@ func main() {
 		addr = ":8102"
 	}
 	log.Printf("Payment API listening on %s", addr)
-	log.Fatal(http.ListenAndServe(addr, r))
+	server := &http.Server{Addr: addr, Handler: r, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			log.Printf("shutdown: %v", err)
+		}
+	}()
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Printf("serve: %v", err)
+	}
+	stop()
+	<-workerDone
 }
 
-func openRepo(ctx context.Context) (repository.PaymentRepository, func()) {
+func openRepo(ctx context.Context) (repository.ProcessingRepository, func()) {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		log.Println("DATABASE_URL unset; using in-memory payments")

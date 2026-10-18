@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -98,12 +99,17 @@ func (SimulatedFraud) Score(_ context.Context, event, account string, amount dec
 	return FraudDecision{EventID: event, Decision: d}, nil
 }
 
-type SimulatedLedger struct{ Transactions map[string]string }
+type SimulatedLedger struct {
+	mu           sync.Mutex
+	Transactions map[string]string
+}
 
 func NewSimulatedLedger() *SimulatedLedger {
 	return &SimulatedLedger{Transactions: map[string]string{}}
 }
 func (l *SimulatedLedger) Post(_ context.Context, key, source, dest string, amount decimal.Decimal, currency string) (string, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	if id, ok := l.Transactions[key]; ok {
 		return id, nil
 	}

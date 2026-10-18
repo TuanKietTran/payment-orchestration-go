@@ -36,6 +36,41 @@ func TestPostgresPayment(t *testing.T) {
 		t.Fatalf("migrate: %v", err)
 	}
 
+	outboxSQL, err := os.ReadFile(filepath.Join("..", "..", "migrations", "002_processing_outbox.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.pool.Exec(ctx, string(outboxSQL)); err != nil {
+		t.Fatal(err)
+	}
+	processingContract(t, repo)
+
+	// Persist an unfinished intent and recover from a fresh independent pool.
+	pending := domain.Payment{ID: uuid.New(), IdempotencyKey: uuid.NewString(), SourceAccount: "source", DestAccount: "dest", Amount: decimal.NewFromInt(1), Currency: "USD", Status: domain.StatusPending}
+	if err := repo.Save(ctx, pending); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.StageDecision(ctx, pending.ID, domain.StatusProcessing); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := NewPostgresPayment(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	ids, err := reopened.PendingPostings(ctx, 100)
+	if err != nil || len(ids) != 1 || ids[0] != pending.ID {
+		t.Fatalf("reopened intents=%v err=%v", ids, err)
+	}
+	ref := uuid.NewString()
+	if err := reopened.CompletePosting(ctx, pending.ID, ref); err != nil {
+		t.Fatal(err)
+	}
+	recovered, err := repo.GetByID(ctx, pending.ID)
+	if err != nil || recovered.LedgerTxID == nil || *recovered.LedgerTxID != ref {
+		t.Fatalf("recovered=%+v err=%v", recovered, err)
+	}
+
 	ledger := uuid.New().String()
 	p := domain.Payment{
 		ID:             uuid.New(),
