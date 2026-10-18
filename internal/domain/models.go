@@ -26,4 +26,5 @@ type Payment struct {
 	Currency       string
 	Status         PaymentStatus
 	LedgerTxID     *string
+	RefundedAmount decimal.Decimal
 }

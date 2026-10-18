@@ -16,6 +16,8 @@ type InMemoryPayment struct {
 	payments    map[domain.PaymentID]domain.Payment
 	idempotency map[string]domain.PaymentID
 	outbox      map[domain.PaymentID]bool
+	refunds     map[uuid.UUID]domain.Refund
+	refundKeys  map[string]uuid.UUID
 }
 
 func NewInMemoryPayment() *InMemoryPayment {
@@ -23,6 +25,8 @@ func NewInMemoryPayment() *InMemoryPayment {
 		payments:    make(map[domain.PaymentID]domain.Payment),
 		idempotency: make(map[string]domain.PaymentID),
 		outbox:      make(map[domain.PaymentID]bool),
+		refunds:     make(map[uuid.UUID]domain.Refund),
+		refundKeys:  make(map[string]uuid.UUID),
 	}
 }
 

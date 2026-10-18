@@ -43,7 +43,15 @@ func TestPostgresPayment(t *testing.T) {
 	if _, err := repo.pool.Exec(ctx, string(outboxSQL)); err != nil {
 		t.Fatal(err)
 	}
+	refundSQL, err := os.ReadFile(filepath.Join("..", "..", "migrations", "003_refunds.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.pool.Exec(ctx, string(refundSQL)); err != nil {
+		t.Fatal(err)
+	}
 	processingContract(t, repo)
+	refundContract(t, repo)
 
 	// Persist an unfinished intent and recover from a fresh independent pool.
 	pending := domain.Payment{ID: uuid.New(), IdempotencyKey: uuid.NewString(), SourceAccount: "source", DestAccount: "dest", Amount: decimal.NewFromInt(1), Currency: "USD", Status: domain.StatusPending}
@@ -62,6 +70,23 @@ func TestPostgresPayment(t *testing.T) {
 	if err != nil || len(ids) != 1 || ids[0] != pending.ID {
 		t.Fatalf("reopened intents=%v err=%v", ids, err)
 	}
+	// An independent pool also sees pending refund intents across adapter lifetimes.
+	refundPayment := domain.Payment{ID: uuid.New(), IdempotencyKey: uuid.NewString(), SourceAccount: "source", DestAccount: "dest", Amount: decimal.NewFromInt(2), Currency: "USD", Status: domain.StatusSettled}
+	if err := repo.Save(ctx, refundPayment); err != nil {
+		t.Fatal(err)
+	}
+	reserved, err := repo.ReserveRefund(ctx, refundPayment.ID, "reopen-refund", decimal.NewFromInt(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pendingRefunds, err := reopened.PendingRefunds(ctx, 100)
+	if err != nil || len(pendingRefunds) != 1 || pendingRefunds[0].ID != reserved.ID {
+		t.Fatalf("reopened refunds=%v err=%v", pendingRefunds, err)
+	}
+	if _, err := reopened.CompleteRefund(ctx, reserved.ID, uuid.NewString()); err != nil {
+		t.Fatal(err)
+	}
+
 	ref := uuid.NewString()
 	if err := reopened.CompletePosting(ctx, pending.ID, ref); err != nil {
 		t.Fatal(err)

@@ -81,14 +81,14 @@ func (r *PostgresPayment) GetByIdempotencyKey(ctx context.Context, key string) (
 
 func (r *PostgresPayment) GetByID(ctx context.Context, id domain.PaymentID) (*domain.Payment, error) {
 	var p domain.Payment
-	var amountText, status string
+	var amountText, refundedText, status string
 	var ledgerID *uuid.UUID
 	err := r.pool.QueryRow(ctx, `
 		SELECT id, idempotency_key, source_account, dest_account,
-		       amount::text, currency, status, ledger_tx_id
+		       amount::text, currency, status, ledger_tx_id, refunded_amount::text
 		FROM payments
 		WHERE id = $1
-	`, id).Scan(&p.ID, &p.IdempotencyKey, &p.SourceAccount, &p.DestAccount, &amountText, &p.Currency, &status, &ledgerID)
+	`, id).Scan(&p.ID, &p.IdempotencyKey, &p.SourceAccount, &p.DestAccount, &amountText, &p.Currency, &status, &ledgerID, &refundedText)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("payment not found")
@@ -98,6 +98,10 @@ func (r *PostgresPayment) GetByID(ctx context.Context, id domain.PaymentID) (*do
 	amt, err := decimal.NewFromString(amountText)
 	if err != nil {
 		return nil, fmt.Errorf("parse amount: %w", err)
+	}
+	p.RefundedAmount, err = decimal.NewFromString(refundedText)
+	if err != nil {
+		return nil, fmt.Errorf("parse refunded amount: %w", err)
 	}
 	p.Amount = amt
 	p.Status = domain.PaymentStatus(status)

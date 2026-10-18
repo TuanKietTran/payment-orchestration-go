@@ -11,7 +11,8 @@ Go 1.22, Chi, `shopspring/decimal`, Google UUID. Postgres via `jackc/pgx` v5 whe
 - `POST /v1/payments`
 - `GET /v1/payments/{id}`
 - `POST /v1/payments/{id}/process` screens and posts allowed payments using a recoverable ledger intent.
-- `api/openapi.yaml` is authoritative: create/get/process are implemented; capture/refund/list/reconciliation remain planned.
+- `POST /v1/payments/{id}/refunds` reserves and posts bounded partial/full reverse transfers.
+- `api/openapi.yaml` is authoritative: create/get/process/refunds are implemented; capture/list/reconciliation remain planned.
 
 ## Checkpoints
 
@@ -19,6 +20,7 @@ Go 1.22, Chi, `shopspring/decimal`, Google UUID. Postgres via `jackc/pgx` v5 whe
 | --- | --- | --- |
 | 2026-10-18 | production-payments contract publication | `a388318`; create/get contract parsed; later process slice expanded runtime. |
 | 2026-10-18 | durable ledger processing intent | `baaa1e2`; `GOTOOLCHAIN=local go test -p 2 ./... -race -count=1 -cover` passed; native embedded Postgres repository 78.9%; weighted non-cmd 68.03%. Saved evidence: control `logs/payments/card4c-gates.log`. |
+| 2026-10-18 | bounded downstream resilience | `3ae0248`; `GOTOOLCHAIN=local go test -p 2 ./... -race -count=1 -cover` passed; downstream 86.4%, weighted non-cmd 76.23%. Evidence: control `logs/payments/card4d-gates.log`. |
 
 | Date | Change | Evidence |
 | --- | --- | --- |

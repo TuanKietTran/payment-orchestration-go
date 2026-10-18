@@ -44,7 +44,8 @@ func main() {
 		ledger = client
 	}
 	processH := command.NewProcessPaymentHandler(repo, fraud, ledger)
-	handlers := api.NewHandlers(createH, getH, processH)
+	refundH := command.NewRefundPaymentHandler(repo, ledger)
+	handlers := api.NewHandlers(createH, getH, processH).WithRefund(refundH)
 	workerDone := make(chan struct{})
 	go func() {
 		defer close(workerDone)
@@ -53,6 +54,9 @@ func main() {
 		for {
 			if err := processH.Recover(ctx, 100); err != nil && ctx.Err() == nil {
 				log.Printf("outbox recovery: %v", err)
+			}
+			if err := refundH.Recover(ctx, 100); err != nil && ctx.Err() == nil {
+				log.Printf("refund recovery: %v", err)
 			}
 			select {
 			case <-ctx.Done():
@@ -88,7 +92,7 @@ func main() {
 	<-workerDone
 }
 
-func openRepo(ctx context.Context) (repository.ProcessingRepository, func()) {
+func openRepo(ctx context.Context) (repository.PaymentStore, func()) {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		log.Println("DATABASE_URL unset; using in-memory payments")

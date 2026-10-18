@@ -29,11 +29,16 @@ func TestOpenAPIContractParsesAndSeparatesImplementedRoutes(t *testing.T) {
 			t.Errorf("implemented route missing: %s", route)
 		}
 	}
-	for _, route := range []string{"/v1/payments/{id}/capture", "/v1/payments/{id}/refunds", "/v1/reconciliation"} {
+	for _, route := range []string{"/v1/payments/{id}/capture", "/v1/reconciliation"} {
 		for _, op := range doc.Paths[route] {
 			if len(op.Summary) < 8 || op.Summary[:8] != "PLANNED:" {
 				t.Errorf("planned route %s not marked planned: %q", route, op.Summary)
 			}
+		}
+	}
+	for _, code := range []string{"200", "400", "409", "503"} {
+		if _, ok := doc.Paths["/v1/payments/{id}/refunds"]["post"].Responses[code]; !ok {
+			t.Errorf("refund missing status %s", code)
 		}
 	}
 	if _, ok := doc.Paths["/v1/payments"]["post"].Responses["400"]; !ok {

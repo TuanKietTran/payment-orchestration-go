@@ -6,6 +6,11 @@ import (
 	"github.com/TuanKietTran/payment-orchestration-go/internal/domain"
 )
 
+type PaymentStore interface {
+	ProcessingRepository
+	RefundRepository
+}
+
 // ProcessingRepository atomically records a fraud decision and, for ALLOW, a
 // recoverable ledger intent. Completion stores the posting reference and removes
 // the intent in the same transaction. Downstream posting must be idempotent.

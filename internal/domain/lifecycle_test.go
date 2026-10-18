@@ -6,10 +6,14 @@ import (
 )
 
 func TestTransitionLegalAndIllegal(t *testing.T) {
-	legal := [][2]PaymentStatus{{StatusCreated, StatusScreened}, {StatusCreated, StatusFailed}, {StatusPending, StatusScreened}, {StatusPending, StatusFailed}, {StatusScreened, StatusAuthorized}, {StatusScreened, StatusFailed}, {StatusAuthorized, StatusCaptured}, {StatusAuthorized, StatusFailed}, {StatusCaptured, StatusSettled}, {StatusCaptured, StatusFailed}, {StatusSettled, StatusPartiallyRefunded}, {StatusSettled, StatusRefunded}, {StatusPartiallyRefunded, StatusRefunded}}
+	legal := [][2]PaymentStatus{{StatusCreated, StatusScreened}, {StatusCreated, StatusFailed}, {StatusPending, StatusScreened}, {StatusPending, StatusFailed}, {StatusScreened, StatusAuthorized}, {StatusScreened, StatusFailed}, {StatusAuthorized, StatusCaptured}, {StatusAuthorized, StatusFailed}, {StatusCaptured, StatusSettled}, {StatusCaptured, StatusFailed}, {StatusSettled, StatusPartiallyRefunded}, {StatusSettled, StatusRefunded}, {StatusPartiallyRefunded, StatusPartiallyRefunded}, {StatusPartiallyRefunded, StatusRefunded}}
 	for _, pair := range legal {
 		if !CanTransition(pair[0], pair[1]) {
 			t.Errorf("transition %s -> %s rejected", pair[0], pair[1])
+		}
+		got, err := Transition(Payment{Status: pair[0]}, pair[1])
+		if err != nil || got.Status != pair[1] {
+			t.Fatalf("legal transition %+v err=%v", got, err)
 		}
 	}
 	all := []PaymentStatus{StatusCreated, StatusPending, StatusScreened, StatusAuthorized, StatusCaptured, StatusSettled, StatusFailed, StatusRefunded, StatusPartiallyRefunded, "UNKNOWN"}

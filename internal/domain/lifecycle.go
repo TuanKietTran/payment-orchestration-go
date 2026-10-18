@@ -48,7 +48,8 @@ func CanTransition(from, to PaymentStatus) bool {
 	case StatusSettled:
 		return to == StatusRefunded || to == StatusPartiallyRefunded
 	case StatusPartiallyRefunded:
-		return to == StatusRefunded
+		// A further positive refund may still leave an outstanding balance.
+		return to == StatusPartiallyRefunded || to == StatusRefunded
 	}
 	return false
 }
