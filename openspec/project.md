@@ -10,13 +10,15 @@ Go 1.22, Chi, `shopspring/decimal`, Google UUID. Postgres via `jackc/pgx` v5 whe
 
 - `POST /v1/payments`
 - `GET /v1/payments/{id}`
-- `api/openapi.yaml` is authoritative: create/get are implemented; process/capture/refund/list/reconciliation are explicitly planned, not callable.
+- `POST /v1/payments/{id}/process` screens and posts allowed payments using a recoverable ledger intent.
+- `api/openapi.yaml` is authoritative: create/get/process are implemented; capture/refund/list/reconciliation remain planned.
 
 ## Checkpoints
 
 | Date | Change | Evidence |
 | --- | --- | --- |
-| 2026-10-18 | production-payments contract publication | OpenAPI published; handler route/status tests and implementation pending. |
+| 2026-10-18 | production-payments contract publication | `a388318`; create/get contract parsed; later process slice expanded runtime. |
+| 2026-10-18 | durable ledger processing intent | `baaa1e2`; `GOTOOLCHAIN=local go test -p 2 ./... -race -count=1 -cover` passed; native embedded Postgres repository 78.9%; weighted non-cmd 68.03%. Saved evidence: control `logs/payments/card4c-gates.log`. |
 
 | Date | Change | Evidence |
 | --- | --- | --- |

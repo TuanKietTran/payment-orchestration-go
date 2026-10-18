@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"sync"
@@ -29,41 +30,84 @@ type Ledger interface {
 type HTTP struct {
 	base   string
 	client *http.Client
+	retry  *retryPolicy
 }
 
 func NewHTTP(base string) (*HTTP, error) {
 	u, err := url.Parse(base)
-	if err != nil || u.Scheme == "" || u.Host == "" {
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		return nil, fmt.Errorf("invalid downstream URL")
 	}
-	return &HTTP{base: base, client: &http.Client{Timeout: 2 * time.Second}}, nil
+	return &HTTP{base: base, client: &http.Client{Timeout: 2 * time.Second}, retry: defaultRetryPolicy()}, nil
 }
 func (h *HTTP) request(ctx context.Context, method, path string, body any, out any) error {
-	var b bytes.Buffer
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	var payload []byte
 	if body != nil {
-		if err := json.NewEncoder(&b).Encode(body); err != nil {
+		var err error
+		payload, err = json.Marshal(body)
+		if err != nil {
 			return err
 		}
 	}
-	req, err := http.NewRequestWithContext(ctx, method, h.base+path, &b)
+	epoch, err := h.retry.acquire()
 	if err != nil {
 		return err
 	}
-	if body != nil {
+	failed := false
+	defer func() {
+		if ctx.Err() != nil {
+			h.retry.abandon(epoch)
+		} else {
+			h.retry.finish(epoch, failed)
+		}
+	}()
+	for attempt := 0; attempt < h.retry.attempts; attempt++ {
+		err, failed = h.attempt(ctx, method, path, payload, out)
+		if err == nil || !failed {
+			return err
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if attempt+1 < h.retry.attempts {
+			if err := h.retry.wait(ctx, h.retry.delay(attempt)); err != nil {
+				return err
+			}
+		}
+	}
+	return err
+}
+
+func (h *HTTP) attempt(ctx context.Context, method, path string, payload []byte, out any) (error, bool) {
+	req, err := http.NewRequestWithContext(ctx, method, h.base+path, bytes.NewReader(payload))
+	if err != nil {
+		return err, false
+	}
+	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	resp, err := h.client.Do(req)
 	if err != nil {
-		return err
+		return err, true
 	}
 	defer resp.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(resp.Body, (1<<20)+1))
+	if err != nil {
+		return err, true
+	}
+	if len(data) > 1<<20 {
+		return fmt.Errorf("downstream response exceeds 1 MiB"), false
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("downstream status %d", resp.StatusCode)
+		return fmt.Errorf("downstream status %d", resp.StatusCode), resp.StatusCode == 408 || resp.StatusCode == 429 || resp.StatusCode >= 500
 	}
 	if out != nil {
-		return json.NewDecoder(resp.Body).Decode(out)
+		return json.Unmarshal(data, out), false
 	}
-	return nil
+	return nil, false
 }
 func (h *HTTP) Score(ctx context.Context, event, account string, amount decimal.Decimal, currency string) (FraudDecision, error) {
 	var out FraudDecision
