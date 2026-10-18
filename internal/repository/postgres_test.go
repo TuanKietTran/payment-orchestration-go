@@ -74,6 +74,7 @@ func TestPostgresPayment(t *testing.T) {
 	}
 	processingContract(t, repo)
 	refundContract(t, repo)
+	listContract(t, repo)
 
 	// Persist an unfinished intent and recover from a fresh independent pool.
 	pending := domain.Payment{ID: uuid.New(), IdempotencyKey: uuid.NewString(), SourceAccount: "source", DestAccount: "dest", Amount: decimal.NewFromInt(1), Currency: "USD", Status: domain.StatusPending}

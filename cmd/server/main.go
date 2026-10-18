@@ -46,6 +46,11 @@ func main() {
 	processH := command.NewProcessPaymentHandler(repo, fraud, ledger)
 	refundH := command.NewRefundPaymentHandler(repo, ledger)
 	handlers := api.NewHandlers(createH, getH, processH).WithRefund(refundH)
+	if lister, ok := repo.(repository.PaymentLister); ok {
+		if reader, ok := ledger.(downstream.LedgerReader); ok {
+			handlers.WithListing(lister, query.NewReconcileHandler(lister, reader))
+		}
+	}
 	workerDone := make(chan struct{})
 	go func() {
 		defer close(workerDone)

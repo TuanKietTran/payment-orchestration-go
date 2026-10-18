@@ -103,7 +103,7 @@ func (h *HTTP) attempt(ctx context.Context, method, path string, payload []byte,
 		return fmt.Errorf("downstream response exceeds 1 MiB"), false
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("downstream status %d", resp.StatusCode), resp.StatusCode == 408 || resp.StatusCode == 429 || resp.StatusCode >= 500
+		return &StatusError{Code: resp.StatusCode}, resp.StatusCode == 408 || resp.StatusCode == 429 || resp.StatusCode >= 500
 	}
 	if out != nil {
 		return json.Unmarshal(data, out), false
@@ -156,6 +156,7 @@ func (SimulatedFraud) Score(_ context.Context, event, account string, amount dec
 type SimulatedLedger struct {
 	mu           sync.Mutex
 	Transactions map[string]string
+	details      map[string]LedgerTransaction
 }
 
 func NewSimulatedLedger() *SimulatedLedger {
@@ -172,5 +173,13 @@ func (l *SimulatedLedger) Post(_ context.Context, key, source, dest string, amou
 	}
 	id := uuid.NewString()
 	l.Transactions[key] = id
+	if l.details == nil {
+		l.details = map[string]LedgerTransaction{}
+	}
+	fixed := amount.StringFixedBank(2)
+	l.details[id] = LedgerTransaction{TransactionID: id, Entries: []LedgerEntry{
+		{AccountID: source, Amount: fixed, Direction: "DEBIT", Currency: currency},
+		{AccountID: dest, Amount: fixed, Direction: "CREDIT", Currency: currency},
+	}}
 	return id, nil
 }

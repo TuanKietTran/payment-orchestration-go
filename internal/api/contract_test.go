@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -29,10 +30,10 @@ func TestOpenAPIContractParsesAndSeparatesImplementedRoutes(t *testing.T) {
 			t.Errorf("implemented route missing: %s", route)
 		}
 	}
-	for _, route := range []string{"/v1/reconciliation"} {
+	for _, route := range []string{"/v1/reconciliation", "/v1/payments"} {
 		for _, op := range doc.Paths[route] {
-			if len(op.Summary) < 8 || op.Summary[:8] != "PLANNED:" {
-				t.Errorf("planned route %s not marked planned: %q", route, op.Summary)
+			if !strings.HasPrefix(op.Summary, "IMPLEMENTED:") {
+				t.Errorf("route %s not marked implemented: %q", route, op.Summary)
 			}
 		}
 	}

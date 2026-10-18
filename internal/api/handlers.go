@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/TuanKietTran/payment-orchestration-go/internal/command"
 	"github.com/TuanKietTran/payment-orchestration-go/internal/domain"
 	"github.com/TuanKietTran/payment-orchestration-go/internal/query"
+	"github.com/TuanKietTran/payment-orchestration-go/internal/repository"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -18,6 +20,77 @@ type Handlers struct {
 	get     *query.GetPaymentHandler
 	process *command.ProcessPaymentHandler
 	refund  *command.RefundPaymentHandler
+	lister  repository.PaymentLister
+	recon   *query.ReconcileHandler
+}
+
+const (
+	defaultPageSize = 50
+	maxPageSize     = 200
+)
+
+// WithListing enables paginated listing and ledger reconciliation routes.
+func (h *Handlers) WithListing(l repository.PaymentLister, rec *query.ReconcileHandler) *Handlers {
+	h.lister, h.recon = l, rec
+	return h
+}
+
+func pageParams(r *http.Request) (uuid.UUID, int, bool) {
+	after := uuid.Nil
+	if raw := r.URL.Query().Get("after"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return after, 0, false
+		}
+		after = id
+	}
+	limit := defaultPageSize
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > maxPageSize {
+			return after, 0, false
+		}
+		limit = n
+	}
+	return after, limit, true
+}
+
+func (h *Handlers) listPayments(w http.ResponseWriter, r *http.Request) {
+	after, limit, ok := pageParams(r)
+	if !ok {
+		http.Error(w, "invalid after or limit", http.StatusBadRequest)
+		return
+	}
+	page, err := h.lister.List(r.Context(), after, limit+1)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	out := struct {
+		Payments  []domain.Payment `json:"payments"`
+		NextAfter string           `json:"next_after,omitempty"`
+	}{Payments: page}
+	if len(page) > limit {
+		out.Payments = page[:limit]
+		out.NextAfter = page[limit-1].ID.String()
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(out)
+}
+
+func (h *Handlers) reconcile(w http.ResponseWriter, r *http.Request) {
+	after, limit, ok := pageParams(r)
+	if !ok {
+		http.Error(w, "invalid after or limit", http.StatusBadRequest)
+		return
+	}
+	report, err := h.recon.Handle(r.Context(), after, limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(report)
 }
 
 func NewHandlers(c *command.CreatePaymentHandler, g *query.GetPaymentHandler, process ...*command.ProcessPaymentHandler) *Handlers {
@@ -40,6 +113,12 @@ func (h *Handlers) Routes() chi.Router {
 	if h.process != nil {
 		r.Post("/payments/{id}/process", h.processPayment)
 		r.Post("/payments/{id}/capture", h.processPayment)
+	}
+	if h.lister != nil {
+		r.Get("/payments", h.listPayments)
+	}
+	if h.recon != nil {
+		r.Get("/reconciliation", h.reconcile)
 	}
 	if h.refund != nil {
 		r.Post("/payments/{id}/refunds", h.refundPayment)
