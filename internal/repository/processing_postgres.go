@@ -29,7 +29,15 @@ func (r *PostgresPayment) StageDecision(ctx context.Context, id domain.PaymentID
 	if current != domain.StatusPending && current != domain.StatusCreated {
 		return tx.Commit(ctx)
 	}
-	if _, err := tx.Exec(ctx, `UPDATE payments SET status=$2, updated_at=NOW() WHERE id=$1`, id, string(status)); err != nil {
+	decision := "REVIEW"
+	storedStatus := status
+	if status == domain.StatusProcessing {
+		storedStatus = domain.StatusScreened
+		decision = "ALLOW"
+	} else if status == domain.StatusFailed {
+		decision = "DENY"
+	}
+	if _, err := tx.Exec(ctx, `UPDATE payments SET status=$2, fraud_decision=$3, updated_at=NOW() WHERE id=$1`, id, string(storedStatus), decision); err != nil {
 		return err
 	}
 	if status == domain.StatusProcessing {
@@ -55,10 +63,10 @@ func (r *PostgresPayment) CompletePosting(ctx context.Context, id domain.Payment
 	if err := tx.QueryRow(ctx, `SELECT status, ledger_tx_id FROM payments WHERE id=$1 FOR UPDATE`, id).Scan(&status, &existing); err != nil {
 		return err
 	}
-	if status == domain.StatusSettled && existing != nil && *existing == ledgerID {
+	if domain.CanRefund(status) && existing != nil && *existing == ledgerID {
 		return tx.Commit(ctx)
 	}
-	if status != domain.StatusProcessing {
+	if status != domain.StatusCaptured {
 		return fmt.Errorf("posting intent missing or conflicting")
 	}
 	tag, err := tx.Exec(ctx, `DELETE FROM payment_outbox WHERE payment_id=$1`, id)

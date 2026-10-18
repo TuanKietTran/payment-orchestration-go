@@ -18,13 +18,16 @@ const (
 )
 
 type Payment struct {
-	ID             PaymentID
-	IdempotencyKey string
-	SourceAccount  string
-	DestAccount    string
-	Amount         decimal.Decimal
-	Currency       string
-	Status         PaymentStatus
-	LedgerTxID     *string
-	RefundedAmount decimal.Decimal
+	ID              PaymentID
+	IdempotencyKey  string
+	SourceAccount   string
+	DestAccount     string
+	Amount          decimal.Decimal
+	Currency        string
+	Status          PaymentStatus
+	LedgerTxID      *string
+	RefundedAmount  decimal.Decimal
+	FraudDecision   string
+	AuthorizationID string
+	CaptureID       string
 }

@@ -100,11 +100,21 @@ func (r *InMemoryPayment) StageDecision(ctx context.Context, id domain.PaymentID
 	if p.Status != domain.StatusPending && p.Status != domain.StatusCreated {
 		return nil
 	}
-	p.Status = status
-	r.payments[id] = p
+	target, decision := status, "REVIEW"
+	if status == domain.StatusProcessing {
+		target, decision = domain.StatusScreened, "ALLOW"
+	} else if status == domain.StatusFailed {
+		decision = "DENY"
+	}
+	updated, err := domain.Transition(p, target)
+	if err != nil {
+		return err
+	}
+	updated.FraudDecision = decision
 	if status == domain.StatusProcessing {
 		r.outbox[id] = true
 	}
+	r.payments[id] = updated
 	return nil
 }
 
@@ -125,14 +135,18 @@ func (r *InMemoryPayment) CompletePosting(ctx context.Context, id domain.Payment
 	if !ok {
 		return fmt.Errorf("payment not found")
 	}
-	if p.Status == domain.StatusSettled && p.LedgerTxID != nil && *p.LedgerTxID == tx {
+	if domain.CanRefund(p.Status) && p.LedgerTxID != nil && *p.LedgerTxID == tx {
 		return nil
 	}
-	if !r.outbox[id] || p.Status != domain.StatusProcessing {
+	if !r.outbox[id] || p.Status != domain.StatusCaptured {
 		return fmt.Errorf("posting intent missing or conflicting")
 	}
-	p.Status, p.LedgerTxID = domain.StatusSettled, &tx
-	r.payments[id] = p
+	updated, err := domain.Transition(p, domain.StatusSettled)
+	if err != nil {
+		return err
+	}
+	updated.LedgerTxID = &tx
+	r.payments[id] = updated
 	delete(r.outbox, id)
 	return nil
 }

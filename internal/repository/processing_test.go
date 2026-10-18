@@ -39,7 +39,7 @@ func processingContract(t *testing.T, repo ProcessingRepository) {
 		t.Fatal(err)
 	}
 	got, err := repo.GetByID(ctx, p.ID)
-	if err != nil || got.Status != domain.StatusProcessing {
+	if err != nil || got.Status != domain.StatusScreened || got.FraudDecision != "ALLOW" {
 		t.Fatalf("payment=%+v err=%v", got, err)
 	}
 	ids, err := repo.PendingPostings(ctx, 1)
@@ -54,6 +54,10 @@ func processingContract(t *testing.T, repo ProcessingRepository) {
 	if err := repo.CompletePosting(ctx, p.ID, "invalid"); err == nil {
 		t.Fatal("accepted invalid reference")
 	}
+	if err := repo.CompletePosting(ctx, p.ID, uuid.NewString()); err == nil {
+		t.Fatal("settled without capture evidence")
+	}
+	advanceCapture(t, repo, p.ID)
 	ref := uuid.NewString()
 	var wg sync.WaitGroup
 	for i := 0; i < 8; i++ {
@@ -92,6 +96,29 @@ func processingContract(t *testing.T, repo ProcessingRepository) {
 	}
 	if _, err := repo.PendingPostings(canceled, 1); err == nil {
 		t.Fatal("ignored cancellation")
+	}
+	if err := repo.DeclinePSP(ctx, uuid.New()); err == nil {
+		t.Fatal("declined missing payment")
+	}
+	p.ID, p.IdempotencyKey, p.Status = uuid.New(), uuid.NewString(), domain.StatusPending
+	if err := repo.Save(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.DeclinePSP(ctx, p.ID); err == nil {
+		t.Fatal("declined without processing intent")
+	}
+	if err := repo.StageDecision(ctx, p.ID, domain.StatusProcessing); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.DeclinePSP(ctx, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.DeclinePSP(ctx, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	got, err = repo.GetByID(ctx, p.ID)
+	if err != nil || got.Status != domain.StatusFailed {
+		t.Fatalf("declined payment=%+v err=%v", got, err)
 	}
 	for _, status := range []domain.PaymentStatus{domain.StatusFailed, domain.StatusScreened} {
 		p.ID, p.IdempotencyKey, p.Status = uuid.New(), uuid.NewString(), domain.StatusPending

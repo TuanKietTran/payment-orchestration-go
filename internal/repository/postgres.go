@@ -85,10 +85,10 @@ func (r *PostgresPayment) GetByID(ctx context.Context, id domain.PaymentID) (*do
 	var ledgerID *uuid.UUID
 	err := r.pool.QueryRow(ctx, `
 		SELECT id, idempotency_key, source_account, dest_account,
-		       amount::text, currency, status, ledger_tx_id, refunded_amount::text
+		       amount::text, currency, status, ledger_tx_id, refunded_amount::text, fraud_decision, authorization_id, capture_id
 		FROM payments
 		WHERE id = $1
-	`, id).Scan(&p.ID, &p.IdempotencyKey, &p.SourceAccount, &p.DestAccount, &amountText, &p.Currency, &status, &ledgerID, &refundedText)
+	`, id).Scan(&p.ID, &p.IdempotencyKey, &p.SourceAccount, &p.DestAccount, &amountText, &p.Currency, &status, &ledgerID, &refundedText, &p.FraudDecision, &p.AuthorizationID, &p.CaptureID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("payment not found")

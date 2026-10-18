@@ -18,6 +18,8 @@ type ProcessingRepository interface {
 	PaymentRepository
 	StageDecision(context.Context, domain.PaymentID, domain.PaymentStatus) error
 	CompletePosting(context.Context, domain.PaymentID, string) error
+	AdvancePSP(context.Context, domain.PaymentID, domain.PaymentStatus, domain.PaymentStatus, string) error
+	DeclinePSP(context.Context, domain.PaymentID) error
 	PendingPostings(context.Context, int) ([]domain.PaymentID, error)
 }
 

@@ -62,7 +62,7 @@ func TestRecoveryReplaysAmbiguousPostingAndCompletionFailure(t *testing.T) {
 				t.Fatal("fault not observed")
 			}
 			p, err := repo.GetByID(ctx, id)
-			if err != nil || p.Status != domain.StatusProcessing || p.LedgerTxID != nil {
+			if err != nil || p.Status != domain.StatusCaptured || p.AuthorizationID == "" || p.CaptureID == "" || p.LedgerTxID != nil {
 				t.Fatalf("false success %+v err=%v", p, err)
 			}
 			pending, err := repo.PendingPostings(ctx, 10)

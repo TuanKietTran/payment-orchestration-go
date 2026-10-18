@@ -39,6 +39,7 @@ func (h *Handlers) Routes() chi.Router {
 	r.Get("/payments/{id}", h.getPayment)
 	if h.process != nil {
 		r.Post("/payments/{id}/process", h.processPayment)
+		r.Post("/payments/{id}/capture", h.processPayment)
 	}
 	if h.refund != nil {
 		r.Post("/payments/{id}/refunds", h.refundPayment)

@@ -26,12 +26,18 @@ func TestRefundHTTPContractAndReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	process := command.NewProcessPaymentHandler(repo, downstream.SimulatedFraud{}, ledger)
-	if _, err := process.Handle(context.Background(), id); err != nil {
-		t.Fatal(err)
-	}
 	h := NewHandlers(create, query.NewGetPaymentHandler(repo), process).WithRefund(command.NewRefundPaymentHandler(repo, ledger))
 	router := chi.NewRouter()
 	router.Mount("/v1", h.Routes())
+	captureResponse := httptest.NewRecorder()
+	router.ServeHTTP(captureResponse, httptest.NewRequest(http.MethodPost, "/v1/payments/"+id.String()+"/capture", strings.NewReader("{}")))
+	if captureResponse.Code != 200 {
+		t.Fatalf("capture status=%d body=%s", captureResponse.Code, captureResponse.Body.String())
+	}
+	var captured domain.Payment
+	if err := json.Unmarshal(captureResponse.Body.Bytes(), &captured); err != nil || captured.Status != domain.StatusSettled || captured.AuthorizationID == "" || captured.CaptureID == "" {
+		t.Fatalf("payment=%+v err=%v", captured, err)
+	}
 	path := "/v1/payments/" + id.String() + "/refunds"
 	var original domain.Refund
 	for i := 0; i < 2; i++ {

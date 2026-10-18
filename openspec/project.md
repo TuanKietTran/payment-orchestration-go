@@ -12,7 +12,8 @@ Go 1.22, Chi, `shopspring/decimal`, Google UUID. Postgres via `jackc/pgx` v5 whe
 - `GET /v1/payments/{id}`
 - `POST /v1/payments/{id}/process` screens and posts allowed payments using a recoverable ledger intent.
 - `POST /v1/payments/{id}/refunds` reserves and posts bounded partial/full reverse transfers.
-- `api/openapi.yaml` is authoritative: create/get/process/refunds are implemented; capture/list/reconciliation remain planned.
+- `POST /v1/payments/{id}/capture` auto-drives the same screened/authorized/captured/settled flow as process.
+- `api/openapi.yaml` is authoritative: create/get/process/capture/refunds are implemented; list/reconciliation remain planned.
 
 ## Checkpoints
 
@@ -27,6 +28,8 @@ Go 1.22, Chi, `shopspring/decimal`, Google UUID. Postgres via `jackc/pgx` v5 whe
 | 2026-10-17 | Handler tests and Postgres repository | `90eefb7`. `go test ./...`. Embedded Postgres 16 covered create, idempotency, status update, and a missing payment. |
 | 2026-10-17 | 1000 requests in one minute, retry, playback, coverage | `internal/playback`. 1000 creates plus one 503 retry each finished in 79ms. Replay returned the original ids and did not add payments. Statement coverage 46.0%. |
 | 2026-10-17 | Definition of done and playback storyboard | `openspec/dod.md` and `openspec/gifs/playback-flow.gif`. GIF review: retry stays at the pre-write state, playback shows the unchanged result. |
+
+| 2026-10-18 | durable partial/full refunds | `a2eb9d6`; `GOTOOLCHAIN=local go test -p 2 ./... -race -count=1 -cover` passed; domain 100%, weighted non-cmd 80.80%, repository 83.1%. Evidence: control `logs/payments/card4e-gates.log`. |
 
 ## Out of scope until implemented
 

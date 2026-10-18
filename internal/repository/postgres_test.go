@@ -50,6 +50,28 @@ func TestPostgresPayment(t *testing.T) {
 	if _, err := repo.pool.Exec(ctx, string(refundSQL)); err != nil {
 		t.Fatal(err)
 	}
+	legacy := domain.Payment{ID: uuid.New(), IdempotencyKey: uuid.NewString(), SourceAccount: "legacy-source", DestAccount: "legacy-dest", Amount: decimal.NewFromInt(1), Currency: "USD", Status: domain.StatusProcessing}
+	if err := repo.Save(ctx, legacy); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.pool.Exec(ctx, `INSERT INTO payment_outbox(payment_id) VALUES($1)`, legacy.ID); err != nil {
+		t.Fatal(err)
+	}
+	pspSQL, err := os.ReadFile(filepath.Join("..", "..", "migrations", "004_psp_progress.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.pool.Exec(ctx, string(pspSQL)); err != nil {
+		t.Fatal(err)
+	}
+	migrated, err := repo.GetByID(ctx, legacy.ID)
+	if err != nil || migrated.Status != domain.StatusScreened || migrated.FraudDecision != "ALLOW" {
+		t.Fatalf("legacy migration=%+v err=%v", migrated, err)
+	}
+	advanceCapture(t, repo, legacy.ID)
+	if err := repo.CompletePosting(ctx, legacy.ID, uuid.NewString()); err != nil {
+		t.Fatal(err)
+	}
 	processingContract(t, repo)
 	refundContract(t, repo)
 
@@ -87,12 +109,13 @@ func TestPostgresPayment(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	advanceCapture(t, reopened, pending.ID)
 	ref := uuid.NewString()
 	if err := reopened.CompletePosting(ctx, pending.ID, ref); err != nil {
 		t.Fatal(err)
 	}
 	recovered, err := repo.GetByID(ctx, pending.ID)
-	if err != nil || recovered.LedgerTxID == nil || *recovered.LedgerTxID != ref {
+	if err != nil || recovered.LedgerTxID == nil || *recovered.LedgerTxID != ref || recovered.AuthorizationID == "" || recovered.CaptureID == "" {
 		t.Fatalf("recovered=%+v err=%v", recovered, err)
 	}
 
