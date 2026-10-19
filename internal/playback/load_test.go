@@ -46,7 +46,8 @@ func TestThousandPerMinuteAndPlayback(t *testing.T) {
 	srv := httptest.NewServer(router)
 	t.Cleanup(srv.Close)
 
-	calls := make([]Call, RequestsPerMinute)
+	const legacyFixtureRequests = 1000
+	calls := make([]Call, legacyFixtureRequests)
 	for i := range calls {
 		calls[i] = Call{
 			Method: http.MethodPost,
