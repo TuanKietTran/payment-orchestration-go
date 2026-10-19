@@ -15,6 +15,18 @@ import (
 	"testing"
 )
 
+func TestProcessMissingPaymentReturnsNotFound(t *testing.T) {
+	r := repository.NewInMemoryPayment()
+	create := command.NewCreatePaymentHandler(r)
+	h := NewHandlers(create, query.NewGetPaymentHandler(r), command.NewProcessPaymentHandler(r, downstream.SimulatedFraud{}, downstream.NewSimulatedLedger()))
+	req := httptest.NewRequest(http.MethodPost, "/payments/00000000-0000-0000-0000-000000000001/process", nil)
+	resp := httptest.NewRecorder()
+	h.Routes().ServeHTTP(resp, req)
+	if resp.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d; body=%s", resp.Code, http.StatusNotFound, resp.Body.String())
+	}
+}
+
 func TestProcessOverHTTPReviewParksWithoutLedgerPosting(t *testing.T) {
 	r := repository.NewInMemoryPayment()
 	create := command.NewCreatePaymentHandler(r)

@@ -1,9 +1,13 @@
 package domain
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
+
+var ErrPaymentNotFound = errors.New("payment not found")
 
 type PaymentID = uuid.UUID
 

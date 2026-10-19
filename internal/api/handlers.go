@@ -203,7 +203,11 @@ func (h *Handlers) processPayment(w http.ResponseWriter, r *http.Request) {
 	}
 	p, err := h.process.Handle(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		status := http.StatusBadGateway
+		if errors.Is(err, domain.ErrPaymentNotFound) {
+			status = http.StatusNotFound
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

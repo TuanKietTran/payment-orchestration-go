@@ -91,7 +91,7 @@ func (r *PostgresPayment) GetByID(ctx context.Context, id domain.PaymentID) (*do
 	`, id).Scan(&p.ID, &p.IdempotencyKey, &p.SourceAccount, &p.DestAccount, &amountText, &p.Currency, &status, &ledgerID, &refundedText, &p.FraudDecision, &p.AuthorizationID, &p.CaptureID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("payment not found")
+			return nil, domain.ErrPaymentNotFound
 		}
 		return nil, err
 	}

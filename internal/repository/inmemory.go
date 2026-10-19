@@ -58,7 +58,7 @@ func (r *InMemoryPayment) GetByID(ctx context.Context, id domain.PaymentID) (*do
 	defer r.mu.RUnlock()
 	p, ok := r.payments[id]
 	if !ok {
-		return nil, fmt.Errorf("payment not found")
+		return nil, domain.ErrPaymentNotFound
 	}
 	p = clonePayment(p)
 	return &p, nil
