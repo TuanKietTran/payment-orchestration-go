@@ -15,24 +15,6 @@ Go 1.22, Chi, `shopspring/decimal`, Google UUID. Postgres via `jackc/pgx` v5 whe
 - `POST /v1/payments/{id}/capture` auto-drives the same screened/authorized/captured/settled flow as process.
 - `api/openapi.yaml` is authoritative: create/get/process/capture/refunds are implemented; list/reconciliation remain planned.
 
-## Checkpoints
-
-| Date | Change | Evidence |
-| --- | --- | --- |
-| 2026-10-18 | production-payments contract publication | `a388318`; create/get contract parsed; later process slice expanded runtime. |
-| 2026-10-18 | durable ledger processing intent | `baaa1e2`; `GOTOOLCHAIN=local go test -p 2 ./... -race -count=1 -cover` passed; native embedded Postgres repository 78.9%; weighted non-cmd 68.03%. Saved evidence: control `logs/payments/card4c-gates.log`. |
-| 2026-10-18 | bounded downstream resilience | `3ae0248`; `GOTOOLCHAIN=local go test -p 2 ./... -race -count=1 -cover` passed; downstream 86.4%, weighted non-cmd 76.23%. Evidence: control `logs/payments/card4d-gates.log`. |
-
-| Date | Change | Evidence |
-| --- | --- | --- |
-| 2026-10-17 | Handler tests and Postgres repository | `90eefb7`. `go test ./...`. Embedded Postgres 16 covered create, idempotency, status update, and a missing payment. |
-| 2026-10-17 | 1000 requests in one minute, retry, playback, coverage | `internal/playback`. 1000 creates plus one 503 retry each finished in 79ms. Replay returned the original ids and did not add payments. Statement coverage 46.0%. |
-| 2026-10-17 | Definition of done and playback storyboard | `openspec/dod.md` and `openspec/gifs/playback-flow.gif`. GIF review: retry stays at the pre-write state, playback shows the unchanged result. |
-
-| 2026-10-18 | durable partial/full refunds | `a2eb9d6`; `GOTOOLCHAIN=local go test -p 2 ./... -race -count=1 -cover` passed; domain 100%, weighted non-cmd 80.80%, repository 83.1%. Evidence: control `logs/payments/card4e-gates.log`. |
-
-| 2026-10-18 | recoverable synthetic PSP stages | `ec42d55`; `GOTOOLCHAIN=local go test -p 2 ./... -race -count=1 -cover` passed; domain 100%, weighted non-cmd 82.96%, repository 84.2%. Fuzz currency validator 151185 executions/3s. Evidence: control `logs/payments/card4f-{gates,fuzz}.log`. |
-
 ## Out of scope until implemented
 
 - `CancelPayment`, `RefundPayment`, and `ListPayments` are named in the README and have no HTTP route.
